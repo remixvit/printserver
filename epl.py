@@ -3,12 +3,15 @@ from PIL import Image
 from config import PRINTER_DEV, LABEL_WIDTH_PX, LABEL_HEIGHT_PX, LABEL_GAP_DOTS
 
 
-def _qr_bitmap(text: str, size_px: int = 96) -> tuple[bytes, int, int]:
+def _qr_bitmap(text: str, size_px: int = 160) -> tuple[bytes, int, int]:
     """Generate QR code as raw 1-bit bitmap for EPL GW command."""
-    img = qrcode.make(text).resize((size_px, size_px), Image.NEAREST).convert('1')
+    # ERROR_CORRECT_L = 7% redundancy → simpler pattern → readable at lower DPI
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_L, border=1)
+    qr.add_data(text)
+    qr.make(fit=True)
+    img = qr.make_image().convert('1').resize((size_px, size_px), Image.NEAREST)
     w, h = img.size
-    # size_px must be multiple of 8 for clean byte alignment
-    assert w % 8 == 0, f"QR width {w} not multiple of 8"
+    assert w % 8 == 0, f"QR size must be multiple of 8, got {w}"
     pixels = list(img.getdata())
     raw = bytearray()
     for row in range(h):
@@ -16,7 +19,7 @@ def _qr_bitmap(text: str, size_px: int = 96) -> tuple[bytes, int, int]:
             byte = 0
             for bit in range(8):
                 idx = row * w + col + bit
-                if idx < len(pixels) and pixels[idx] == 0:  # 0 = black in mode '1'
+                if idx < len(pixels) and pixels[idx] == 0:
                     byte |= (1 << (7 - bit))
             raw.append(byte)
     return bytes(raw), w, h
@@ -45,12 +48,12 @@ def print_label(data: dict) -> None:
         section_path,
     ]
     qr_text = " | ".join(p for p in qr_parts if p)
-    qr_bytes, qr_w, qr_h = _qr_bitmap(qr_text, size_px=96)
+    qr_bytes, qr_w, qr_h = _qr_bitmap(qr_text, size_px=160)
 
     cmd = bytearray()
-    cmd += b"N\n"                                                       # clear buffer
-    cmd += f"q{LABEL_WIDTH_PX}\n".encode('ascii')                       # label width
-    cmd += f"Q{LABEL_HEIGHT_PX},{LABEL_GAP_DOTS}\n".encode('ascii')     # label height + gap
+    cmd += b"N\n"
+    cmd += f"q{LABEL_WIDTH_PX}\n".encode('ascii')
+    cmd += f"Q{LABEL_HEIGHT_PX},{LABEL_GAP_DOTS}\n".encode('ascii')
 
     # Line 1: order number + title
     header = f"#{order_number}  {order_title}" if order_number else order_title
@@ -75,9 +78,8 @@ def print_label(data: dict) -> None:
     if section_path:
         cmd += _t(f'A10,{y},0,1,1,1,N,"{section_path}"')
 
-    # QR code — bottom-right corner
-    # GW format: GWx,y,width_in_bytes,height\n<raw binary>
-    qr_x = LABEL_WIDTH_PX - qr_w - 8
+    # QR centered horizontally at bottom
+    qr_x = (LABEL_WIDTH_PX - qr_w) // 2
     qr_y = LABEL_HEIGHT_PX - qr_h - 8
     cmd += f"GW{qr_x},{qr_y},{qr_w // 8},{qr_h}\n".encode('ascii')
     cmd += qr_bytes  # raw binary — NOT hex, NOT encoded as text
