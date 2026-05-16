@@ -1,6 +1,6 @@
 import io
 import base64
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
 import qrcode
 
 DPI = 203
@@ -17,6 +17,17 @@ def _font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
         return ImageFont.truetype(FONT_BOLD_PATH if bold else FONT_PATH, size)
     except OSError:
         return ImageFont.load_default()
+
+
+def _prepare_image_for_print(el_img: Image.Image, w_el: int, h_el: int) -> Image.Image:
+    """Resize and enhance photo for thermal printing."""
+    el_img = el_img.resize((w_el, h_el), Image.LANCZOS).convert('L')
+    # Boost contrast and sharpness for thermal printing
+    el_img = ImageEnhance.Contrast(el_img).enhance(1.8)
+    el_img = ImageEnhance.Sharpness(el_img).enhance(2.0)
+    # Dither to 1-bit with Floyd-Steinberg, then back to L for compositing
+    el_img = el_img.convert('1').convert('L')
+    return el_img.convert('RGB')
 
 
 def render_label(layout: dict) -> Image.Image:
@@ -36,7 +47,6 @@ def render_label(layout: dict) -> Image.Image:
         elif t == 'qr':
             text = el.get('text', '')
             size = el.get('size', 96)
-            # Round size up to multiple of 8 for EPL bitmap alignment
             size = ((size + 7) // 8) * 8
             qr_img = qrcode.make(text).resize((size, size), Image.NEAREST).convert('RGB')
             img.paste(qr_img, (x, y))
@@ -46,7 +56,7 @@ def render_label(layout: dict) -> Image.Image:
             el_img = Image.open(io.BytesIO(raw)).convert('RGB')
             w_el = el.get('width', el_img.width)
             h_el = el.get('height', el_img.height)
-            el_img = el_img.resize((w_el, h_el), Image.LANCZOS)
+            el_img = _prepare_image_for_print(el_img, w_el, h_el)
             img.paste(el_img, (x, y))
 
     return img
