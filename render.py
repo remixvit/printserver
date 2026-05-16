@@ -67,8 +67,9 @@ def render_to_epl(layout: dict) -> bytes:
     h_px = img.height
     w_bytes = (w_px + 7) // 8
 
-    bw = img.convert('1')
-    pixels = list(bw.getdata())
+    # Convert to grayscale and threshold without dithering
+    gray = img.convert('L')
+    pixels = list(gray.getdata())
 
     bitmap = bytearray()
     for row in range(h_px):
@@ -79,7 +80,7 @@ def render_to_epl(layout: dict) -> bytes:
                 px = col + bit
                 if px < w_px:
                     idx = row * w_px + px
-                    if idx < len(pixels) and pixels[idx] == 0:
+                    if idx < len(pixels) and pixels[idx] < 128:  # dark pixel = print dot
                         byte |= (1 << (7 - bit))
             bitmap.append(byte)
 
