@@ -80,7 +80,7 @@ def render_to_epl(layout: dict) -> bytes:
                 px = col + bit
                 if px < w_px:
                     idx = row * w_px + px
-                    if idx < len(pixels) and pixels[idx] < 128:  # dark pixel = print dot
+                    if idx < len(pixels) and pixels[idx] >= 128:  # light pixel → bit=1 means NO dot on LP2844
                         byte |= (1 << (7 - bit))
             bitmap.append(byte)
 
