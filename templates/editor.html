@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Label Editor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #111; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Header */
+header { background: #1e1e1e; padding: 10px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #2a2a2a; flex-shrink: 0; }
+header h1 { font-size: 15px; font-weight: 600; color: #fff; }
+.spacer { flex: 1; }
+.status { font-size: 12px; color: #6b7280; }
+.status.ok { color: #22c55e; }
+.status.err { color: #ef4444; }
+
+/* Buttons */
+.btn { padding: 7px 14px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 500; transition: background .15s; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn-blue { background: #2563eb; color: #fff; }
+.btn-blue:hover:not(:disabled) { background: #1d4ed8; }
+.btn-green { background: #16a34a; color: #fff; }
+.btn-green:hover:not(:disabled) { background: #15803d; }
+.btn-gray { background: #374151; color: #e0e0e0; }
+.btn-gray:hover:not(:disabled) { background: #4b5563; }
+.btn-sm { padding: 4px 9px; font-size: 12px; }
+.btn-red { background: #dc2626; color: #fff; }
+.btn-red:hover { background: #b91c1c; }
+
+/* Layout */
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* Sidebar */
+.sidebar { width: 310px; background: #1a1a1a; border-right: 1px solid #2a2a2a; display: flex; flex-direction: column; overflow: hidden; flex-shrink: 0; }
+.sidebar-scroll { overflow-y: auto; flex: 1; }
+
+.sec { padding: 14px; border-bottom: 1px solid #222; }
+.sec-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6b7280; margin-bottom: 10px; }
+
+/* Size presets */
+.presets { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.preset { padding: 4px 9px; background: #2a2a2a; border: 1px solid transparent; border-radius: 4px; font-size: 12px; cursor: pointer; color: #9ca3af; }
+.preset:hover { background: #374151; }
+.preset.on { border-color: #2563eb; color: #60a5fa; background: #1e3a5f22; }
+.size-row { display: flex; gap: 6px; align-items: center; font-size: 12px; color: #6b7280; }
+.size-row input { width: 60px; }
+
+/* Add buttons */
+.add-btns { display: flex; flex-direction: column; gap: 6px; }
+
+/* Element list */
+.el-list { }
+.el-item { border-bottom: 1px solid #1e1e1e; cursor: pointer; }
+.el-item:hover .el-head { background: #222; }
+.el-item.sel .el-head { background: #1e3a5f; border-left: 3px solid #2563eb; }
+.el-head { display: flex; align-items: center; gap: 8px; padding: 9px 14px; }
+.el-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; background: #2a2a2a; color: #6b7280; flex-shrink: 0; }
+.el-badge.text { background: #1e3a5f; color: #60a5fa; }
+.el-badge.qr { background: #14532d; color: #4ade80; }
+.el-badge.image { background: #4a1d96; color: #c084fc; }
+.el-preview { font-size: 12px; color: #9ca3af; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.el-del { margin-left: auto; background: none; border: none; color: #4b5563; cursor: pointer; font-size: 18px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+.el-del:hover { color: #ef4444; }
+.el-props { padding: 10px 14px 12px; background: #151515; }
+
+/* Form */
+.field { margin-bottom: 8px; }
+.field label { display: block; font-size: 11px; color: #6b7280; margin-bottom: 3px; }
+.field input, .field textarea, .field select { width: 100%; padding: 5px 8px; background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 4px; color: #e0e0e0; font-size: 13px; outline: none; font-family: inherit; }
+.field input:focus, .field textarea:focus { border-color: #2563eb; }
+.field textarea { resize: vertical; min-height: 52px; }
+.row2 { display: flex; gap: 8px; }
+.row2 > .field { flex: 1; }
+.check-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.check-row input { width: auto; }
+.check-row label { font-size: 12px; color: #9ca3af; margin: 0; }
+
+/* Preview */
+.preview-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; overflow: auto; background: #111; }
+.preview-wrap { position: relative; }
+.preview-img { display: block; box-shadow: 0 8px 32px rgba(0,0,0,.7); border: 1px solid #333; background: white; }
+.preview-hint { margin-top: 12px; font-size: 11px; color: #4b5563; text-align: center; }
+.preview-empty { width: 240px; height: 344px; background: #fff; display: flex; align-items: center; justify-content: center; color: #999; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Label Editor</h1>
+  <span id="status" class="status">—</span>
+  <div class="spacer"></div>
+  <button class="btn btn-gray" onclick="updatePreview()">Preview</button>
+  <button class="btn btn-blue" onclick="saveLayout()">Save layout</button>
+  <button class="btn btn-green" onclick="printLabel()">Print</button>
+</header>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-scroll">
+
+      <!-- Label size -->
+      <div class="sec">
+        <div class="sec-title">Label size (mm)</div>
+        <div class="presets">
+          <div class="preset on" onclick="setSize(40,57,this)">40×57</div>
+          <div class="preset" onclick="setSize(57,40,this)">57×40</div>
+          <div class="preset" onclick="setSize(58,60,this)">58×60</div>
+          <div class="preset" onclick="setSize(76,51,this)">76×51</div>
+          <div class="preset" onclick="setSize(100,150,this)">100×150</div>
+        </div>
+        <div class="size-row">
+          <input type="number" id="labelW" value="40" min="20" max="200" oninput="schedulePreview()">
+          <span>×</span>
+          <input type="number" id="labelH" value="57" min="20" max="300" oninput="schedulePreview()">
+          <span>mm</span>
+        </div>
+      </div>
+
+      <!-- Add elements -->
+      <div class="sec">
+        <div class="sec-title">Add element</div>
+        <div class="add-btns">
+          <button class="btn btn-gray" onclick="addText()">+ Text</button>
+          <button class="btn btn-gray" onclick="addQR()">+ QR Code</button>
+          <button class="btn btn-gray" onclick="document.getElementById(\"imgInput\").click()">+ Image</button>
+          <input type="file" id="imgInput" accept="image/*" style="display:none" onchange="addImage(this)">
+        </div>
+      </div>
+
+      <!-- Elements -->
+      <div class="el-list" id="elList"></div>
+
+    </div>
+  </div>
+
+  <div class="preview-area">
+    <div class="preview-wrap">
+      <img id="previewImg" class="preview-img" style="display:none">
+      <div id="previewEmpty" class="preview-img preview-empty">Press Preview</div>
+    </div>
+    <div class="preview-hint">Server-rendered — exact print output</div>
+  </div>
+</div>
+
+<script>
+const DPI = 203;
+const mm2px = mm => Math.round(mm * DPI / 25.4);
+
+let elements = [], nextId = 1, selectedId = null, previewTimer = null;
+
+// --- Layout helpers ---
+function getLayout() {
+  return {
+    width_mm: +document.getElementById('labelW').value,
+    height_mm: +document.getElementById('labelH').value,
+    elements
+  };
+}
+
+function setSize(w, h, el) {
+  document.getElementById('labelW').value = w;
+  document.getElementById('labelH').value = h;
+  document.querySelectorAll('.preset').forEach(e => e.classList.remove('on'));
+  el.classList.add('on');
+  schedulePreview();
+}
+
+// --- Add elements ---
+function addText() {
+  push({ type:'text', x:10, y:10, text:'Text here', font_size:24, bold:false });
+}
+function addQR() {
+  push({ type:'qr', x:10, y:200, text:'QR content', size:96 });
+}
+function addImage(input) {
+  const f = input.files[0]; if (!f) return;
+  const fr = new FileReader();
+  fr.onload = e => {
+    push({ type:'image', x:10, y:10, width:100, height:100, data: e.target.result.split(',')[1] });
+    input.value = '';
+  };
+  fr.readAsDataURL(f);
+}
+
+function push(el) {
+  el.id = nextId++;
+  elements.push(el);
+  selectedId = el.id;
+  render();
+  schedulePreview();
+}
+
+function del(id) {
+  elements = elements.filter(e => e.id !== id);
+  if (selectedId === id) selectedId = null;
+  render(); schedulePreview();
+}
+
+function sel(id) { selectedId = id; render(); }
+
+function setField(id, key, val) {
+  const el = elements.find(e => e.id === id);
+  if (!el) return;
+  const numKeys = ['x','y','font_size','size','width','height'];
+  el[key] = numKeys.includes(key) ? (parseInt(val)||0) : (key==='bold' ? val : val);
+  schedulePreview();
+}
+
+// --- Render sidebar ---
+function render() {
+  const list = document.getElementById('elList');
+  list.innerHTML = '';
+  elements.forEach(el => {
+    const wrap = document.createElement('div');
+    wrap.className = 'el-item' + (el.id===selectedId?' sel':'');
+    wrap.innerHTML = head(el) + (el.id===selectedId ? props(el) : '');
+    wrap.querySelector('.el-head').onclick = () => sel(el.id);
+    wrap.querySelector('.el-del').onclick = e => { e.stopPropagation(); del(el.id); };
+    if (el.id===selectedId) bindProps(wrap, el);
+    list.appendChild(wrap);
+  });
+}
+
+function head(el) {
+  const preview = el.type==='image' ? '🖼 image' : (el.text||'').slice(0,32);
+  return `<div class="el-head">
+    <span class="el-badge ${el.type}">${el.type}</span>
+    <span class="el-preview">${esc(preview)}</span>
+    <button class="el-del">×</button>
+  </div>`;
+}
+
+function props(el) {
+  if (el.type==='text') return `<div class="el-props">
+    <div class="field"><label>Text</label><textarea data-key="text">${esc(el.text)}</textarea></div>
+    <div class="row2">
+      <div class="field"><label>X (dots)</label><input type="number" data-key="x" value="${el.x}"></div>
+      <div class="field"><label>Y (dots)</label><input type="number" data-key="y" value="${el.y}"></div>
+    </div>
+    <div class="field"><label>Font size (px)</label><input type="number" data-key="font_size" value="${el.font_size}"></div>
+    <div class="check-row"><input type="checkbox" id="b${el.id}" data-key="bold" ${el.bold?'checked':''}><label for="b${el.id}">Bold</label></div>
+  </div>`;
+
+  if (el.type==='qr') return `<div class="el-props">
+    <div class="field"><label>QR content</label><textarea data-key="text">${esc(el.text)}</textarea></div>
+    <div class="row2">
+      <div class="field"><label>X (dots)</label><input type="number" data-key="x" value="${el.x}"></div>
+      <div class="field"><label>Y (dots)</label><input type="number" data-key="y" value="${el.y}"></div>
+    </div>
+    <div class="field"><label>Size (dots)</label><input type="number" data-key="size" value="${el.size}"></div>
+  </div>`;
+
+  if (el.type==='image') return `<div class="el-props">
+    <div class="row2">
+      <div class="field"><label>X (dots)</label><input type="number" data-key="x" value="${el.x}"></div>
+      <div class="field"><label>Y (dots)</label><input type="number" data-key="y" value="${el.y}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Width (dots)</label><input type="number" data-key="width" value="${el.width}"></div>
+      <div class="field"><label>Height (dots)</label><input type="number" data-key="height" value="${el.height}"></div>
+    </div>
+    <button class="btn btn-gray btn-sm" onclick="document.getElementById('imgInput').click()">Replace image</button>
+  </div>`;
+
+  return '';
+}
+
+function bindProps(wrap, el) {
+  wrap.querySelectorAll('[data-key]').forEach(inp => {
+    const key = inp.dataset.key;
+    const ev = inp.type==='checkbox' ? 'change' : 'input';
+    inp.addEventListener(ev, () => {
+      setField(el.id, key, inp.type==='checkbox' ? inp.checked : inp.value);
+      // update preview text in header without full re-render
+    });
+  });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// --- Preview ---
+function schedulePreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(updatePreview, 700);
+}
+
+async function updatePreview() {
+  setStatus('rendering…', '');
+  try {
+    const r = await fetch('/preview', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(getLayout())
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const img = document.getElementById('previewImg');
+    const layout = getLayout();
+    const wPx = mm2px(layout.width_mm), hPx = mm2px(layout.height_mm);
+    const scale = Math.min(560/wPx, 660/hPx, 3);
+    img.style.width  = Math.round(wPx*scale)+'px';
+    img.style.height = Math.round(hPx*scale)+'px';
+    img.src = url;
+    img.style.display = 'block';
+    document.getElementById('previewEmpty').style.display = 'none';
+    setStatus('Preview OK', 'ok');
+  } catch(e) {
+    setStatus('Error: '+e.message, 'err');
+  }
+}
+
+// --- Print ---
+async function printLabel() {
+  setStatus('Sending to printer…', '');
+  try {
+    const r = await fetch('/print-custom', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(getLayout())
+    });
+    const d = await r.json();
+    setStatus(d.ok ? 'Printed!' : 'Error', d.ok ? 'ok' : 'err');
+  } catch(e) {
+    setStatus('Print error: '+e.message, 'err');
+  }
+}
+
+// --- Save / Load layout ---
+function saveLayout() {
+  const json = JSON.stringify(getLayout(), null, 2);
+  const a = document.createElement('a');
+  a.href = 'data:application/json,' + encodeURIComponent(json);
+  a.download = 'label-layout.json';
+  a.click();
+}
+
+function setStatus(msg, cls) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + cls;
+}
+
+render();
+</script>
+</body>
+</html>
