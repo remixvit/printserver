@@ -1,0 +1,16 @@
+[Unit]
+Description=Label Print Server
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/opt/printserver
+EnvironmentFile=-/opt/printserver/.env
+ExecStart=/opt/printserver/venv/bin/python app.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
