@@ -36,7 +36,15 @@ def print_label(data: dict) -> None:
     color        = data.get('color')        or ''
     section_path = data.get('section_path') or ''
 
-    qr_text = f"{profile_code} {length}мм {order_number}".strip()
+    qr_parts = [
+        f"№{order_number}" if order_number else "",
+        order_title,
+        f"{profile_name} {profile_code}".strip(),
+        f"{length}мм",
+        color,
+        section_path,
+    ]
+    qr_text = " | ".join(p for p in qr_parts if p)
     qr_bytes, qr_w, qr_h = _qr_bitmap(qr_text, size_px=96)
 
     cmd = bytearray()
