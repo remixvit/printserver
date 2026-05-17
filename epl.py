@@ -55,28 +55,31 @@ def print_label(data: dict) -> None:
     cmd += f"q{LABEL_WIDTH_PX}\n".encode('ascii')
     cmd += f"Q{LABEL_HEIGHT_PX},{LABEL_GAP_DOTS}\n".encode('ascii')
 
-    # Line 1: order number + title
-    header = f"#{order_number}  {order_title}" if order_number else order_title
-    cmd += _t(f'A10,10,0,2,1,1,N,"{header[:30]}"')
+    # Line 1: order number (small, font 2)
+    if order_number:
+        cmd += _t(f'A10,10,0,2,1,1,N,"#{order_number}"')
+    # Line 2: order title (font 1, fits long names)
+    if order_title:
+        cmd += _t(f'A10,32,0,1,1,1,N,"{order_title[:36]}"')
 
-    # Line 2: profile name (large)
-    cmd += _t(f'A10,45,0,3,1,1,N,"{profile_name}"')
+    # Line 3: profile name (large, font 3)
+    cmd += _t(f'A10,50,0,3,1,1,N,"{profile_name[:22]}"')
 
-    # Line 3: profile code
-    cmd += _t(f'A10,80,0,2,1,1,N,"{profile_code}"')
+    # Line 4: profile code (font 2)
+    cmd += _t(f'A10,82,0,2,1,1,N,"{profile_code}"')
 
-    # Line 4: length — biggest font, most important field
-    cmd += _t(f'A10,110,0,4,1,1,N,"{length} mm"')
+    # Line 5: length — biggest font, most important field
+    cmd += _t(f'A10,105,0,4,1,1,N,"{length} mm"')
 
-    y = 158
-    # Line 5: color (optional)
+    y = 155
+    # Line 6: color (optional)
     if color:
         cmd += _t(f'A10,{y},0,2,1,1,N,"{color}"')
-        y += 35
+        y += 28
 
-    # Line 6: section path (optional, small font)
+    # Line 7: section path (optional, small font)
     if section_path:
-        cmd += _t(f'A10,{y},0,1,1,1,N,"{section_path}"')
+        cmd += _t(f'A10,{y},0,1,1,1,N,"{section_path[:36]}"')
 
     # QR centered horizontally at bottom
     qr_x = (LABEL_WIDTH_PX - qr_w) // 2
