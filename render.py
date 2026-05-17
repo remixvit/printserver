@@ -64,8 +64,6 @@ def render_label(layout: dict) -> Image.Image:
 
 def render_to_png_bytes(layout: dict, scale: int = 3) -> bytes:
     img = render_label(layout)
-    if img.width > img.height:
-        img = img.rotate(90, expand=True)
     preview = img.resize((img.width * scale, img.height * scale), Image.NEAREST)
     buf = io.BytesIO()
     preview.save(buf, 'PNG')
