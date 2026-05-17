@@ -60,18 +60,41 @@ Zebra LP2844 → /dev/usb/lp0
 {"ok": true}
 ```
 
-**Тест с PowerShell:**
+**Тест с PowerShell (кириллица):**
 ```powershell
 Invoke-WebRequest -Uri "http://192.168.1.52:8050/print" `
-  -Method POST -ContentType "application/json" `
-  -Body '{"length":1200,"qty":1,"profile_code":"П-60x60","profile_name":"Стойка угловая","order_title":"Перегородка офис","order_number":"2024-042","section_path":"Секция_А","color":"RAL 9010"}'
+  -Method POST `
+  -ContentType "application/json; charset=utf-8" `
+  -Body '{"length":1200,"qty":1,"profile_code":"П-60x60","profile_name":"Стойка угловая","order_title":"Перегородка офис 3 этаж","order_number":"2024-042","section_path":"Секция_А/Левая_часть","color":"RAL 9010"}'
 ```
 
 **Тест с curl (Linux/Mac):**
 ```bash
 curl -X POST http://192.168.1.52:8050/print \
-  -H 'Content-Type: application/json' \
-  -d '{"length":1200,"qty":1,"profile_code":"П-60x60","profile_name":"Стойка угловая","order_title":"Перегородка офис","order_number":"2024-042","section_path":"Секция_А","color":"RAL 9010"}'
+  -H 'Content-Type: application/json; charset=utf-8' \
+  -d '{"length":1200,"qty":1,"profile_code":"П-60x60","profile_name":"Стойка угловая","order_title":"Перегородка офис 3 этаж","order_number":"2024-042","section_path":"Секция_А/Левая_часть","color":"RAL 9010"}'
+```
+
+**Тест из Python (cutting-api):**
+```python
+import httpx
+
+payload = {
+    "length": 1200,
+    "qty": 1,
+    "profile_code": "П-60x60",
+    "profile_name": "Стойка угловая",
+    "order_title": "Перегородка офис 3 этаж",
+    "order_number": "2024-042",
+    "section_path": "Секция_А/Левая_часть",
+    "color": "RAL 9010",
+}
+
+try:
+    r = httpx.post("http://192.168.1.52:8050/print", json=payload, timeout=10)
+    r.raise_for_status()
+except Exception as e:
+    pass  # fire-and-forget, ошибки глотаем
 ```
 
 ---
@@ -127,12 +150,13 @@ cutting-api вызывает `POST /print` после `PUT /pieces/{id}/done` е
 **Layout:**
 ```
 ┌────────────────────────┐
-│ #2024-042  Заказ...    │  ← номер + название заказа
-│ Стойка угловая         │  ← название профиля
+│ #2024-042              │  ← номер заказа (мелко)
+│ Перегородка офис 3 эт  │  ← название заказа (мелко, до 36 символов)
+│ Стойка угловая         │  ← название профиля (крупно)
 │ П-60x60                │  ← код профиля
-│ 1200 mm                │  ← длина (крупно)
-│ RAL 9010               │  ← цвет
-│ Секция_А/Левая_часть   │  ← путь секции
+│ 1200 mm                │  ← длина (самый крупный шрифт)
+│ RAL 9010               │  ← цвет (если есть)
+│ Секция_А/Левая_часть   │  ← путь секции (если есть, до 36 символов)
 │      ┌──────────┐      │
 │      │    QR    │      │  ← 160×160 dots, по центру
 │      └──────────┘      │
