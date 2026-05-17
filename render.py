@@ -64,6 +64,8 @@ def render_label(layout: dict) -> Image.Image:
 
 def render_to_png_bytes(layout: dict, scale: int = 3) -> bytes:
     img = render_label(layout)
+    if img.width > img.height:
+        img = img.rotate(90, expand=True)
     preview = img.resize((img.width * scale, img.height * scale), Image.NEAREST)
     buf = io.BytesIO()
     preview.save(buf, 'PNG')
@@ -73,6 +75,11 @@ def render_to_png_bytes(layout: dict, scale: int = 3) -> bytes:
 def render_to_epl(layout: dict) -> bytes:
     from config import LABEL_GAP_DOTS
     img = render_label(layout)
+
+    # Rotate landscape labels 90° to fit portrait roll
+    if img.width > img.height:
+        img = img.rotate(90, expand=True)
+
     w_px = img.width
     h_px = img.height
     w_bytes = (w_px + 7) // 8
